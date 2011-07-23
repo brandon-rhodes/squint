@@ -50,7 +50,6 @@ class Squinter(object):
     def verbose(self):
         return ReprStr(format_object(self, verbose=True))
 
-    @property
     def cycles(self, depth=4):
         return ReprStr(format_cycles(self._obj, depth=4))
 
@@ -96,7 +95,7 @@ def iter_refs(obj):
             yield 'key{}'.format(i), k
             yield 'value{}'.format(i), v
     elif isinstance(obj, set):
-        for i, k in enumerate(set.iterkeys(obj)):
+        for i, k in enumerate(set.__iter__(obj)):
             yield 'member{}'.format(i), k
 
 
