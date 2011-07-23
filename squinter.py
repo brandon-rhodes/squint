@@ -51,8 +51,8 @@ class Squinter(object):
         return ReprStr(format_object(self, verbose=True))
 
     @property
-    def loops(self, depth=4):
-        return ReprStr(format_loops(self._obj, depth=4))
+    def cycles(self, depth=4):
+        return ReprStr(format_cycles(self._obj, depth=4))
 
 
 def get_typename(obj):
@@ -133,23 +133,23 @@ def summarize_items(items):
     return ''.join('  {}*{}'.format(k.__name__, v) for k, v in citems if v)
 
 
-def format_loops(obj, depth=4):
-    """Describe the object loops found by deliving beneath `obj`."""
-    looplist = []
-    _loop_search(obj, (), ['$'], depth, looplist)
-    return '\n'.join('{} <- .{}'.format(*t) for t in looplist)
+def format_cycles(obj, depth=4):
+    """Describe the object cycles found by deliving beneath `obj`."""
+    cyclelist = []
+    _cycle_search(obj, (), ['$'], depth, cyclelist)
+    return '\n'.join('{} <- .{}'.format(*t) for t in cyclelist)
 
 
-def _loop_search(obj, parent_ids, names, depth, looplist):
+def _cycle_search(obj, parent_ids, names, depth, cyclelist):
     parent_ids += (id(obj),)
     go_deeper = depth > 1
     for name, value in iter_refs(obj):
         names.append(name)
         if id(value) in parent_ids:
             i = parent_ids.index(id(value)) + 1
-            looplist.append(('.'.join(names[:i]), '.'.join(names[i:])))
+            cyclelist.append(('.'.join(names[:i]), '.'.join(names[i:])))
         elif go_deeper:
-            _loop_search(value, parent_ids, names, depth - 1, looplist)
+            _cycle_search(value, parent_ids, names, depth - 1, cyclelist)
         names.pop()
 
 
