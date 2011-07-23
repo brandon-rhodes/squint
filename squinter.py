@@ -50,6 +50,10 @@ class Squinter(object):
     def verbose(self):
         return ReprStr(format_object(self, verbose=True))
 
+    @property
+    def loops(self, depth=4):
+        return ReprStr(format_loops(self._obj, depth=4))
+
 
 def get_typename(obj):
     """Compute an object's type without causing side effects."""
@@ -81,16 +85,19 @@ def iter_refs(obj):
     if d is not None:
         for k, v in d.iteritems():
             yield 'a_' + k, v
-    if isinstance(obj, (tuple, list)):
+    if isinstance(obj, tuple):
+        for i in range(tuple.__len__(obj)):
+            yield 'item{}'.format(i), tuple.__getitem__(obj, i)
+    if isinstance(obj, list):
         for i in range(list.__len__(obj)):
-            yield 'item{}'.format(i), list.__getitem__(i)
+            yield 'item{}'.format(i), list.__getitem__(obj, i)
     if isinstance(obj, dict):
         for i, (k, v) in enumerate(dict.iteritems(obj)):
             yield 'key{}'.format(i), k
             yield 'value{}'.format(i), v
     elif isinstance(obj, set):
         for i, k in enumerate(set.iterkeys(obj)):
-            yield 'key{}'.format(i), k
+            yield 'member{}'.format(i), k
 
 
 def format_object(squinter, verbose=False):
@@ -99,9 +106,51 @@ def format_object(squinter, verbose=False):
     squinter.load()
     items = squinter.refs.items()
     items.sort()
+    if not verbose:
+        t += summarize_items(items)
     for name, value in items:
         t += '\n  {} {}'.format(name, format_summary(value))
     return t
+
+
+def summarize_items(items):
+    """Remove primitively-typed objects from `items` and return a summary."""
+    i = 0
+    counts = {int: 0, float: 0, complex: 0, str: 0, unicode: 0}
+    while i < len(items):
+        k, v = items[i]
+        vtype = type(v)
+        if vtype in counts:
+            if vtype in (str, unicode):
+                counts[vtype] += len(v)
+            else:
+                counts[vtype] += 1
+            del items[i]
+        else:
+            i += 1
+    citems = counts.items()
+    citems.sort()
+    return ''.join('  {}*{}'.format(k.__name__, v) for k, v in citems if v)
+
+
+def format_loops(obj, depth=4):
+    """Describe the object loops found by deliving beneath `obj`."""
+    looplist = []
+    _loop_search(obj, (), ['$'], depth, looplist)
+    return '\n'.join('{} <- .{}'.format(*t) for t in looplist)
+
+
+def _loop_search(obj, parent_ids, names, depth, looplist):
+    parent_ids += (id(obj),)
+    go_deeper = depth > 1
+    for name, value in iter_refs(obj):
+        names.append(name)
+        if id(value) in parent_ids:
+            i = parent_ids.index(id(value)) + 1
+            looplist.append(('.'.join(names[:i]), '.'.join(names[i:])))
+        elif go_deeper:
+            _loop_search(value, parent_ids, names, depth - 1, looplist)
+        names.pop()
 
 
 class ReprStr(str):
