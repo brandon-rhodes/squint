@@ -135,7 +135,7 @@ def summarize_items(items):
 def format_cycles(obj, depth=4):
     """Describe the object cycles found by deliving beneath `obj`."""
     cyclelist = []
-    _cycle_search(obj, (), ['$'], depth, cyclelist)
+    _cycle_search(obj, (), ['_'], depth, cyclelist)
     return '\n'.join('{} <- .{}'.format(*t) for t in cyclelist)
 
 
