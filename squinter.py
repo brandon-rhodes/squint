@@ -1,6 +1,9 @@
 """Squinter that lets you examine live Python objects."""
 
+import re
+
 _unknown = object()
+identifier_match = re.compile(r'[A-Za-z_][A-Za-z_0-9]*$').match
 
 class Squinter(object):
 
@@ -79,7 +82,12 @@ def format_summary(obj):
 
 
 def iter_refs(obj):
-    """Yield a (name, child) tuple for each object referenced by `obj`."""
+    """Yield a (name, child) tuple for each object referenced by `obj`.
+
+    In every case this routine is careful to extract references from the
+    object without ever actually risking an invocation of its code.
+
+    """
     d = getattr(obj, '__dict__', None)
     if d is not None:
         for k, v in d.iteritems():
@@ -92,8 +100,14 @@ def iter_refs(obj):
             yield 'item{}'.format(i), list.__getitem__(obj, i)
     if isinstance(obj, dict):
         for i, (k, v) in enumerate(dict.iteritems(obj)):
-            yield 'key{}'.format(i), k
-            yield 'value{}'.format(i), v
+            tk = type(k)
+            if tk is int:
+                yield 'k{}'.format(k), v
+            elif tk is str and identifier_match(k):
+                yield 'k_' + k, v
+            else:
+                yield 'key{}'.format(i), k
+                yield 'value{}'.format(i), v
     elif isinstance(obj, set):
         for i, k in enumerate(set.__iter__(obj)):
             yield 'member{}'.format(i), k
